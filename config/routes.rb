@@ -10,6 +10,9 @@ Rails.application.routes.draw do
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
+  # Наш новый маршрут: при переходе на /import вызываем экшен import в PagesController
+  get "import", to: "pages#import"
+
   # Defines the root path route ("/")
   # root "posts#index"
   # Указываем, что корень сайта — это экшен home контроллера pages
