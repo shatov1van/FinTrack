@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Fintrack" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Fintrack">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
+    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+  <!-- НАЧАЛО ШАПКИ -->
+  <header class="p-4 bg-gray-800 text-white flex justify-between items-center">
+    <div class="font-bold text-xl">FinTrack</div>
+
+    <div class="flex gap-4 items-center">
+      <% if user_signed_in? %>
+        <!-- Экран, на котором видно, что вы залогинены -->
+        <span>Привет, <%= current_user.email %>!</span>
+
+        <!-- Работа с сессиями: кнопка выхода -->
+        <%= button_to "Выйти", destroy_user_session_path, method: :delete, class: "bg-red-500 px-3 py-1 rounded hover:bg-red-600" %>
+      <% else %>
+        <span>Вы гость</span>
+        <%= link_to "Войти", new_user_session_path, class: "bg-blue-500 px-3 py-1 rounded hover:bg-blue-600" %>
+        <%= link_to "Регистрация", new_user_registration_path, class: "bg-green-500 px-3 py-1 rounded hover:bg-green-600" %>
+      <% end %>
+    </div>
+  </header>
+  <!-- КОНЕЦ ШАПКИ -->
+
+  <!-- Здесь будет отображаться контент конкретной страницы (например, дэшборда) -->
+  <main class="p-4">
+    <!-- Всплывающие уведомления Devise (успешный вход, ошибки и т.д.) -->
+    <p class="notice text-green-600"><%= notice %></p>
+    <p class="alert text-red-600"><%= alert %></p>
+
+    <%= yield %>
+  </main>
+</body>
+</html>
