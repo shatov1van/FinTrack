@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+/* 1. Включаем переключение темной темы по классу .dark на теге <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 2. Задаем наши кастомные цвета для тем */
+@theme {
+  --color-brand-orange: #f97316;
+  --color-brand-orangeHover: #ea580c;
+  --color-brand-purple: #2e1065;
+  --color-brand-purpleLight: #4c1d95;
+}
