@@ -10,9 +10,43 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_09_162311) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_121931) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "bank_statements", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "bank_name"
+    t.string "file_name"
+    t.string "status"
+    t.date "period_start"
+    t.date "period_end"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_bank_statements_on_user_id"
+  end
+
+  create_table "categories", force: :cascade do |t|
+    t.string "name"
+    t.string "color"
+    t.text "keywords"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "financial_transactions", force: :cascade do |t|
+    t.bigint "bank_statement_id", null: false
+    t.bigint "category_id"
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.string "transaction_type", null: false
+    t.date "transaction_date", null: false
+    t.string "merchant", null: false
+    t.boolean "is_subscription", default: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["bank_statement_id"], name: "index_financial_transactions_on_bank_statement_id"
+    t.index ["category_id"], name: "index_financial_transactions_on_category_id"
+  end
 
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
@@ -25,4 +59,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_09_162311) do
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
+
+  add_foreign_key "bank_statements", "users"
+  add_foreign_key "financial_transactions", "bank_statements"
+  add_foreign_key "financial_transactions", "categories"
 end
