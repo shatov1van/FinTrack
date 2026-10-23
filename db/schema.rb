@@ -17,6 +17,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_121931) do
   create_table "bank_statements", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "bank_name"
+    t.string "account_mask"
     t.string "file_name"
     t.string "status"
     t.date "period_start"
@@ -24,14 +25,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_121931) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_bank_statements_on_user_id"
+    t.index ["user_id", "bank_name", "account_mask", "period_start", "period_end"], 
+            unique: true, 
+            name: "index_bank_statements_unique_period"
   end
 
   create_table "categories", force: :cascade do |t|
-    t.string "name"
-    t.string "color"
+    t.bigint "user_id"
+    t.string "name", null: false
+    t.string "color", default: "#000000"
     t.text "keywords"
+    t.string "kind", default: "expense", null: false
+    t.boolean "is_system", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    
+    t.index ["user_id"], name: "index_categories_on_user_id"
+    t.index ["kind"], name: "index_categories_on_kind"
   end
 
   create_table "financial_transactions", force: :cascade do |t|
@@ -63,4 +73,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_121931) do
   add_foreign_key "bank_statements", "users"
   add_foreign_key "financial_transactions", "bank_statements"
   add_foreign_key "financial_transactions", "categories"
+  add_foreign_key "categories", "users"
 end
