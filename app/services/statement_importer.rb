@@ -122,7 +122,13 @@ class StatementImporter
   private
 
   def parse_csv
-    content = File.read(uploaded_file.tempfile.path, encoding: "bom|utf-8")
+    tempfile = uploaded_file.tempfile
+    tempfile.flush
+    tempfile.rewind
+    content = tempfile.read.to_s
+      .force_encoding(Encoding::UTF_8)
+      .sub(/\A\uFEFF/, "")
+      .scrub
     delimiter = content.lines.first.to_s.count(";") > content.lines.first.to_s.count(",") ? ";" : ","
     CSV.parse(content, headers: true, col_sep: delimiter).filter_map { |row| normalize_row(row.to_h) }
   rescue CSV::MalformedCSVError, ArgumentError => e
@@ -256,10 +262,12 @@ class StatementImporter
 
   def parse_date(value)
     normalized = value.to_s.strip
-    Date.strptime(normalized, "%d.%m.%Y")
-  rescue Date::Error
-    Date.strptime(normalized, "%d/%m/%Y")
-  rescue Date::Error
+    formats = [ "%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d" ]
+    formats.each do |format|
+      return Date.strptime(normalized, format)
+    rescue Date::Error
+      next
+    end
     Date.parse(normalized)
   end
 
