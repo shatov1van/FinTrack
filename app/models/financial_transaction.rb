@@ -14,7 +14,7 @@ class FinancialTransaction < ApplicationRecord
 
   # БИЗНЕС-ЛОГИКА 1: Автоматическое определение категории и проверка на скрытую подписку (AI-Категоризатор)
   def auto_categorize!
-    detected_category = Category.detect_for_merchant(merchant)
+    detected_category = Category.detect_for_merchant(merchant, user: bank_statement.user)
     self.category = detected_category if detected_category
 
     # Проверяем, входит ли мерчант в список регулярных цифровых подписок

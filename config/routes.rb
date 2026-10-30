@@ -12,6 +12,7 @@ Rails.application.routes.draw do
 
   # Наш новый маршрут: при переходе на /import вызываем экшен import в PagesController
   get "import", to: "pages#import"
+  post "import", to: "pages#import"
 
   # Defines the root path route ("/")
   # root "posts#index"

@@ -9,6 +9,8 @@ class BankStatement < ApplicationRecord
   validates :bank_name, presence: true
   validates :file_name, presence: true
   validates :status, presence: true, inclusion: { in: STATUSES }
+  validates :source_format, inclusion: { in: %w[csv xlsx xls pdf] }, allow_nil: true
+  validates :file_digest, uniqueness: { scope: :user_id }, allow_nil: true
   validate :period_end_after_period_start
 
   # БИЗНЕС-ЛОГИКА 1: Сумма всех расходов по конкретной выписке

@@ -10,38 +10,39 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_121931) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_151000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "bank_statements", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "bank_name"
-    t.string "account_mask"
     t.string "file_name"
     t.string "status"
     t.date "period_start"
     t.date "period_end"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "account_mask"
+    t.string "file_digest"
+    t.string "source_format"
+    t.text "error_message"
+    t.index ["user_id", "bank_name", "account_mask", "period_start", "period_end"], name: "index_bank_statements_unique_period", unique: true
+    t.index ["user_id", "file_digest"], name: "index_bank_statements_on_user_id_and_file_digest", unique: true
     t.index ["user_id"], name: "index_bank_statements_on_user_id"
-    t.index ["user_id", "bank_name", "account_mask", "period_start", "period_end"], 
-            unique: true, 
-            name: "index_bank_statements_unique_period"
   end
 
   create_table "categories", force: :cascade do |t|
-    t.bigint "user_id"
-    t.string "name", null: false
-    t.string "color", default: "#000000"
+    t.string "name"
+    t.string "color"
     t.text "keywords"
-    t.string "kind", default: "expense", null: false
-    t.boolean "is_system", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    
-    t.index ["user_id"], name: "index_categories_on_user_id"
+    t.bigint "user_id"
+    t.string "kind", default: "expense", null: false
+    t.boolean "is_system", default: false, null: false
     t.index ["kind"], name: "index_categories_on_kind"
+    t.index ["user_id"], name: "index_categories_on_user_id"
   end
 
   create_table "financial_transactions", force: :cascade do |t|
@@ -71,7 +72,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_121931) do
   end
 
   add_foreign_key "bank_statements", "users"
+  add_foreign_key "categories", "users"
   add_foreign_key "financial_transactions", "bank_statements"
   add_foreign_key "financial_transactions", "categories"
-  add_foreign_key "categories", "users"
 end

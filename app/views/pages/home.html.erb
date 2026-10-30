@@ -25,7 +25,7 @@
       <div class="bg-white dark:bg-brand-purpleLight overflow-hidden shadow rounded-xl border border-gray-100 dark:border-brand-purple transition-colors">
         <div class="px-4 py-5 sm:p-6">
           <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Общий баланс</dt>
-          <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">125 000 ₽</dd>
+          <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white"><%= number_to_currency(@user.total_balance, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %></dd>
         </div>
       </div>
 
@@ -33,7 +33,7 @@
       <div class="bg-white dark:bg-brand-purpleLight overflow-hidden shadow rounded-xl border border-gray-100 dark:border-brand-purple transition-colors">
         <div class="px-4 py-5 sm:p-6">
           <dt class="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">Доходы</dt>
-          <dd class="mt-1 text-3xl font-semibold text-green-600 dark:text-green-400">+ 150 000 ₽</dd>
+          <dd class="mt-1 text-3xl font-semibold text-green-600 dark:text-green-400">+ <%= number_to_currency(@user.total_income, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %></dd>
         </div>
       </div>
 
@@ -41,7 +41,7 @@
       <div class="bg-white dark:bg-brand-purpleLight overflow-hidden shadow rounded-xl border border-gray-100 dark:border-brand-purple transition-colors">
         <div class="px-4 py-5 sm:p-6">
           <dt class="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">Расходы</dt>
-          <dd class="mt-1 text-3xl font-semibold text-red-600 dark:text-red-400">- 25 000 ₽</dd>
+          <dd class="mt-1 text-3xl font-semibold text-red-600 dark:text-red-400">- <%= number_to_currency(@user.total_expenses, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %></dd>
         </div>
       </div>
     </div>
@@ -53,15 +53,41 @@
       <!-- Используем dashed (пунктирную) рамку, чтобы показать, что это плейсхолдер -->
       <div class="bg-white dark:bg-brand-purpleLight shadow rounded-xl p-6 flex flex-col items-center justify-center h-72 border-2 border-dashed border-gray-300 dark:border-gray-600 transition-colors">
         <svg class="w-12 h-12 text-gray-300 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
-        <span class="text-gray-500 dark:text-gray-300 font-medium">Здесь будет график расходов по категориям</span>
-        <span class="text-sm text-gray-400 dark:text-gray-500 mt-2">(Интеграция Chart.js в будущем)</span>
+        <span class="text-gray-500 dark:text-gray-300 font-medium">График расходов по категориям</span>
+        <span class="text-sm text-gray-400 dark:text-gray-500 mt-2">Будет добавлен после накопления данных</span>
       </div>
 
       <!-- Заглушка: Динамика баланса -->
       <div class="bg-white dark:bg-brand-purpleLight shadow rounded-xl p-6 flex flex-col items-center justify-center h-72 border-2 border-dashed border-gray-300 dark:border-gray-600 transition-colors">
         <svg class="w-12 h-12 text-gray-300 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-        <span class="text-gray-500 dark:text-gray-300 font-medium">Здесь будет график динамики баланса</span>
-        <span class="text-sm text-gray-400 dark:text-gray-500 mt-2">(Линейный график)</span>
+        <span class="text-gray-500 dark:text-gray-300 font-medium">Динамика баланса</span>
+        <span class="text-sm text-gray-400 dark:text-gray-500 mt-2">Линейный график будет добавлен следующим этапом</span>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-brand-purpleLight shadow rounded-xl border border-gray-100 dark:border-brand-purple overflow-hidden">
+      <div class="px-4 py-5 border-b border-gray-200 dark:border-brand-purple sm:px-6">
+        <h2 class="text-lg font-medium text-gray-900 dark:text-white">Последние операции</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody class="bg-white dark:bg-brand-purpleLight divide-y divide-gray-200 dark:divide-gray-700">
+            <% if @recent_transactions.any? %>
+              <% @recent_transactions.each do |transaction| %>
+                <tr>
+                  <td class="px-6 py-4 text-sm text-gray-500"><%= l(transaction.transaction_date) %></td>
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white"><%= transaction.merchant %></td>
+                  <td class="px-6 py-4 text-sm font-semibold <%= transaction.transaction_type == "income" ? "text-green-600" : "text-red-600" %>">
+                    <%= transaction.transaction_type == "income" ? "+" : "-" %> <%= number_to_currency(transaction.amount, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-500"><%= transaction.category&.name || "Без категории" %></td>
+                </tr>
+              <% end %>
+            <% else %>
+              <tr><td class="px-6 py-8 text-center text-sm text-gray-500" colspan="4">Загрузите первую выписку, чтобы увидеть операции.</td></tr>
+            <% end %>
+          </tbody>
+        </table>
       </div>
     </div>
 
