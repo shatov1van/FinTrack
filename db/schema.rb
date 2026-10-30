@@ -10,9 +10,31 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_151000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_30_153100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+    t.index ["record_type", "record_id", "name"], name: "index_active_storage_attachments_lookup"
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "filename", null: false
+    t.string "content_type"
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.bigint "byte_size", null: false
+    t.string "checksum", null: false
+    t.datetime "created_at", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
 
   create_table "bank_statements", force: :cascade do |t|
     t.bigint "user_id", null: false
@@ -27,6 +49,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_151000) do
     t.string "file_digest"
     t.string "source_format"
     t.text "error_message"
+    t.boolean "archived", default: false, null: false
+    t.integer "imported_count", default: 0, null: false
+    t.integer "duplicate_count", default: 0, null: false
     t.index ["user_id", "bank_name", "account_mask", "period_start", "period_end"], name: "index_bank_statements_unique_period", unique: true
     t.index ["user_id", "file_digest"], name: "index_bank_statements_on_user_id_and_file_digest", unique: true
     t.index ["user_id"], name: "index_bank_statements_on_user_id"
@@ -55,6 +80,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_151000) do
     t.boolean "is_subscription", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["bank_statement_id", "transaction_date", "amount", "merchant"], name: "index_financial_transactions_on_statement_and_identity", unique: true
     t.index ["bank_statement_id"], name: "index_financial_transactions_on_bank_statement_id"
     t.index ["category_id"], name: "index_financial_transactions_on_category_id"
   end
@@ -71,6 +97,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_151000) do
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "bank_statements", "users"
   add_foreign_key "categories", "users"
   add_foreign_key "financial_transactions", "bank_statements"

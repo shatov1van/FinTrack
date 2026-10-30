@@ -14,11 +14,22 @@ class Category < ApplicationRecord
     return nil if merchant_name.blank?
 
     normalized_merchant = merchant_name.downcase
-    where(user_id: [ nil, user&.id ]).find do |category|
+    where(user_id: [ nil, user&.id ]).filter_map do |category|
       next if category.keywords.blank?
 
       keywords_list = category.keywords.downcase.split(",").map(&:strip)
-      keywords_list.any? { |keyword| normalized_merchant.include?(keyword) }
-    end
+      matched_keyword = keywords_list.select { |keyword| keyword_match?(normalized_merchant, keyword) }.max_by(&:length)
+      [ category, matched_keyword.length ] if matched_keyword
+    end.max_by { |_category, keyword_length| keyword_length }&.first
   end
+
+  def self.keyword_match?(merchant, keyword)
+    return false if keyword.blank?
+
+    normalized_keyword = keyword.downcase.strip
+    return merchant.include?(normalized_keyword) if normalized_keyword.length > 3 || normalized_keyword.include?(" ")
+
+    merchant.match?(/(?:\A|[^[:alnum:]])#{Regexp.escape(normalized_keyword)}(?:\z|[^[:alnum:]])/)
+  end
+  private_class_method :keyword_match?
 end

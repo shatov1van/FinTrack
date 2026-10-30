@@ -8,3 +8,111 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+:root {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+.theme-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.theme-heading,
+.form-label,
+.table-header,
+.table-cell {
+  color: #111827;
+}
+
+.theme-muted {
+  color: #4b5563;
+}
+
+.theme-link {
+  color: #1d4ed8;
+}
+
+.theme-input,
+.theme-file {
+  color: #111827;
+  background: #ffffff;
+  border-color: #9ca3af;
+  font-weight: 600;
+}
+
+.theme-table-head {
+  background: #f3f4f6;
+}
+
+.action-button {
+  background: #1f2937;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.status-badge {
+  background: #dcfce7;
+  color: #166534;
+}
+
+html.dark .theme-card {
+  background: #30264a;
+  border-color: #725b9b;
+}
+
+html.dark .theme-heading,
+html.dark .form-label,
+html.dark .table-header,
+html.dark .table-cell,
+html.dark .theme-muted {
+  color: #f59e0b;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-gray-700,
+html.dark .text-gray-600,
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #f59e0b !important;
+}
+
+html.dark .theme-link {
+  color: #fb923c;
+}
+
+html.dark .theme-input,
+html.dark .theme-file {
+  color: #f59e0b;
+  background: #211a35;
+  border-color: #a78bca;
+  font-weight: 700;
+}
+
+html.dark .theme-input option {
+  color: #f59e0b;
+  background: #211a35;
+}
+
+html.dark .theme-table-head {
+  background: #211a35;
+}
+
+html.dark .action-button {
+  background: #f97316;
+  color: #211a35;
+}
+
+html.dark .status-badge {
+  background: #713f12;
+  color: #fed7aa;
+}
+
+html.dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(67%) sepia(95%) saturate(1000%) hue-rotate(350deg);
+}

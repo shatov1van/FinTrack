@@ -35,6 +35,7 @@
 
         <% if user_signed_in? %>
           <span class="text-sm">Привет, <%= current_user.email %>!</span>
+          <%= link_to "Выписки", bank_statements_path, class: "text-sm hover:text-brand-orange" %>
           <!-- Экран, на котором видно, что вы залогинены -->
 
           <!-- Работа с сессиями: кнопка выхода -->

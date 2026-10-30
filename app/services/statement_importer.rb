@@ -15,9 +15,10 @@ class StatementImporter
     new(user:, uploaded_file:).call
   end
 
-  def initialize(user:, uploaded_file:)
+  def initialize(user:, uploaded_file:, statement: nil)
     @user = user
     @uploaded_file = uploaded_file
+    @statement = statement
   end
 
   def call
@@ -26,33 +27,57 @@ class StatementImporter
     digest = Digest::SHA256.hexdigest(bytes)
     raise Error, "Этот файл уже импортирован." if user.bank_statements.exists?(file_digest: digest)
 
-    rows = parse_rows
-    raise Error, "В файле не найдены транзакции." if rows.empty?
-
     statement = user.bank_statements.create!(
-      bank_name: "Не указан",
+      bank_name: nil,
       file_name: uploaded_file.original_filename,
       file_digest: digest,
       source_format: extension,
-      status: "processing"
+      status: "pending"
     )
+    self.class.new(user:, uploaded_file:, statement:).process
+  rescue ActiveRecord::RecordInvalid => e
+    raise Error, e.record.errors.full_messages.to_sentence
+  end
+
+  def process
+    validate_file!
+    statement.update!(status: "processing", error_message: nil)
+    parser = parser_for_file
+    if extension == "pdf" && statement.bank_name.blank? && !parser.is_a?(StatementParsers::SberbankPdf)
+      statement.update!(status: "needs_bank_selection")
+      return statement
+    end
+    statement.update!(bank_name: parser.bank_name) if statement.bank_name.blank?
+    rows = parser.parse
+    raise Error, "В файле не найдены транзакции." if rows.empty?
 
     ActiveRecord::Base.transaction do
-      rows.each { |row| create_transaction!(statement, row) }
+      imported_count = 0
+      duplicate_count = 0
+      rows.each do |row|
+        if duplicate_transaction?(statement, row)
+          duplicate_count += 1
+        else
+          create_transaction!(statement, row)
+          imported_count += 1
+        end
+      end
       statement.update!(
-        status: "completed",
+        status: "parsed",
+        imported_count: imported_count,
+        duplicate_count: duplicate_count,
         period_start: statement.financial_transactions.minimum(:transaction_date),
         period_end: statement.financial_transactions.maximum(:transaction_date)
       )
     end
     statement
   rescue ActiveRecord::RecordInvalid => e
-    statement&.update(status: "failed", error_message: e.message)
+    statement&.update(status: "error", error_message: e.message)
     raise Error, e.record.errors.full_messages.to_sentence
   rescue Error
     raise
   rescue StandardError => e
-    statement&.update(status: "failed", error_message: e.message)
+    statement&.update(status: "error", error_message: e.message)
     raise Error, "Не удалось обработать файл: #{e.message}"
   end
 
@@ -71,12 +96,30 @@ class StatementImporter
   end
 
   def parse_rows
+    parser_for_file.parse
+  end
+
+  def parser_for_file
+    sample = uploaded_file.tempfile.rewind && uploaded_file.tempfile.read(50_000).to_s
+    uploaded_file.tempfile.rewind
+    StatementParsers::Registry.for(format: extension, bank_name: statement&.bank_name, sample:, importer: self)
+  end
+
+  public
+
+  def parse_tabular_rows
     case extension
     when "csv" then parse_csv
     when "xlsx", "xls" then parse_spreadsheet
-    when "pdf" then parse_pdf
+    else []
     end
   end
+
+  def parse_pdf_rows
+    parse_pdf
+  end
+
+  private
 
   def parse_csv
     content = File.read(uploaded_file.tempfile.path, encoding: "bom|utf-8")
@@ -97,22 +140,69 @@ class StatementImporter
   end
 
   def parse_pdf
-    text = PDF::Reader.new(uploaded_file.tempfile.path).pages.map(&:text).join("\n")
-    text.lines.filter_map do |line|
-      date_match = line.match(/\b(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/)
-      amount_match = line.match(/[-+]?\d[\d\s]*(?:[.,]\d{1,2})?\s*(?:₽|RUB|руб\.)?/i)
-      next unless date_match && amount_match
-
-      amount = parse_amount(amount_match[0])
-      {
-        date: parse_date(date_match[1]),
-        merchant: line.delete_prefix(date_match[0]).delete(amount_match[0]).strip,
-        amount: amount.abs,
-        transaction_type: amount.negative? ? "expense" : "income"
-      }
+    PDF::Reader.new(uploaded_file.tempfile.path).pages.flat_map do |page|
+      lines = page.text.lines.map { |line| line.to_s.gsub("\u00a0", " ").strip }.reject(&:blank?)
+      operation_starts = lines.each_index.select { |index| operation_start?(lines[index]) }
+      operation_starts.each_with_index.filter_map do |start_index, position|
+        end_index = operation_starts[position + 1] || lines.length
+        parse_pdf_block(lines[start_index...end_index])
+      end
     end
   rescue PDF::Reader::MalformedPDFError, ArgumentError => e
     raise Error, "PDF имеет неверный формат: #{e.message}"
+  end
+
+  def operation_start?(line)
+    line.match?(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\s+\d{1,2}:\d{2}\b/)
+  end
+
+  def parse_pdf_block(lines)
+    first_line = lines.first.to_s
+    date_match = first_line.match(/\b(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})\b/)
+    return unless date_match
+
+    date = parse_date(date_match[1])
+    return unless date.year.between?(2000, Date.current.year + 1)
+
+    amount_source = first_line.gsub(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\b/, "")
+    amount_matches = amount_source.to_enum(:scan, /[+\-−]?\d[\d\s]*(?:[.,]\d{2})(?:\s*(?:₽|RUB|руб\.))?/i).map { Regexp.last_match[0] }
+    unless amount_matches.any?
+      amount_source = lines.join(" ").gsub(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\b/, "")
+      amount_matches = amount_source.to_enum(:scan, /[+\-−]?\d[\d\s]*(?:[.,]\d{2})(?:\s*(?:₽|RUB|руб\.))?/i).map { Regexp.last_match[0] }
+    end
+    return if amount_matches.empty?
+
+    amount_token = amount_matches.first
+    amount = parse_amount(amount_token)
+    return if amount.zero?
+
+    merchant = clean_pdf_merchant(lines.join(" ").delete(amount_token))
+    return if merchant.blank? || merchant.match?(/\A[\d\s:.,+\-−]+\z/)
+
+    {
+      date: date,
+      merchant: merchant,
+      amount: amount.abs,
+      transaction_type: pdf_transaction_type(merchant, amount, amount_token)
+    }
+  rescue Date::Error, ArgumentError
+    nil
+  end
+
+  def clean_pdf_merchant(value)
+    value.to_s
+      .tr("\u00a0", " ")
+      .gsub(/\s+/, " ")
+      .gsub(/\A[\s|:;,\-−]+|[\s|:;,\-−]+\z/, "")
+      .strip
+  end
+
+  def pdf_transaction_type(merchant, amount, amount_token)
+    normalized = merchant.downcase
+    return "income" if amount_token.match?(/\A[+]/) || normalized.match?(/зачисл|пополн|зарплат|вклад|перевод на карту/)
+    return "expense" if normalized.match?(/покупк|оплат|списан|перевод на/)
+
+    "expense"
   end
 
   def normalize_row(raw)
@@ -136,7 +226,7 @@ class StatementImporter
         amount_key == "credit" || amount.positive? ? "income" : "expense"
       end
     end
-    { date: parse_date(date), merchant: merchant.to_s.strip, amount: amount.abs, transaction_type: type }
+    { date: parse_date(date), merchant: clean_merchant(merchant), amount: amount.abs, transaction_type: type }
   rescue ArgumentError
     nil
   end
@@ -149,7 +239,7 @@ class StatementImporter
   end
 
   def normalize_header(header)
-    header.to_s.strip.downcase.gsub(/[[:space:]]+/, "_")
+    header.to_s.encode("UTF-8", invalid: :replace, undef: :replace, replace: "").strip.downcase.gsub(/[[:space:]]+/, "_")
   end
 
   def parse_amount(value)
@@ -165,10 +255,28 @@ class StatementImporter
   end
 
   def parse_date(value)
-    Date.strptime(value.to_s.strip, "%d.%m.%Y")
+    normalized = value.to_s.strip
+    Date.strptime(normalized, "%d.%m.%Y")
   rescue Date::Error
-    Date.parse(value.to_s)
+    Date.strptime(normalized, "%d/%m/%Y")
+  rescue Date::Error
+    Date.parse(normalized)
   end
+
+  def clean_merchant(value)
+    value.to_s.gsub(/\s+/, " ").strip
+  end
+
+  def duplicate_transaction?(statement, row)
+    normalized_merchant = clean_merchant(row[:merchant]).downcase
+    statement.user.financial_transactions
+      .joins(:bank_statement)
+      .where(bank_statements: { archived: false })
+      .where(transaction_date: row[:date], amount: row[:amount], transaction_type: row[:transaction_type])
+      .any? { |transaction| clean_merchant(transaction.merchant).downcase == normalized_merchant }
+  end
+
+  attr_reader :statement
 
   def create_transaction!(statement, row)
     statement.financial_transactions.create!(

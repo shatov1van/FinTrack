@@ -33,13 +33,13 @@ RSpec.describe FinancialTransaction, type: :model do
     end
 
     context 'когда мерчант неизвестен системе' do
-      it 'оставляет категорию пустой (nil) и флаг подписки false' do
+      it 'назначает категорию "Неопределено" и оставляет флаг подписки false' do
         tx = statement.financial_transactions.create!(
           amount: 500, transaction_type: 'expense', transaction_date: Date.today, merchant: 'IP NEIZVESTNYI M.M.'
         )
         tx.auto_categorize!
 
-        expect(tx.category).to be_nil
+        expect(tx.category.name).to eq("Неопределено")
         expect(tx.is_subscription).to be(false)
       end
     end
