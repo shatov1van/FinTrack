@@ -11,8 +11,14 @@ class User < ApplicationRecord
 
   # БИЗНЕС-ЛОГИКА: Подсчет чистого баланса пользователя по всем банкам (Мультибанкинг)
   def total_balance
-    incomes = financial_transactions.where(transaction_type: "income").sum(:amount)
-    expenses = financial_transactions.where(transaction_type: "expense").sum(:amount)
-    incomes - expenses
+    total_income - total_expenses
+  end
+
+  def total_income
+    financial_transactions.where(transaction_type: "income").sum(:amount)
+  end
+
+  def total_expenses
+    financial_transactions.where(transaction_type: "expense").sum(:amount)
   end
 end

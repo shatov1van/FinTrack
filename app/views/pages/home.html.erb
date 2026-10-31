@@ -1,4 +1,5 @@
 <% if user_signed_in? %>
+  <turbo-frame id="dashboard">
   <!-- ========================================== -->
   <!-- ДЭШБОРД (Виден только авторизованным)      -->
   <!-- ========================================== -->
@@ -14,8 +15,29 @@
       </div>
       
       <!-- Кнопка перехода на страницу загрузки -->
-      <%= link_to "Загрузить выписку", import_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-brand-orange hover:bg-brand-orangeHover transition-colors shadow-sm" %>
+      <div class="flex flex-col items-stretch gap-2">
+        <%= link_to "Загрузить выписку", import_path, data: { turbo_frame: "_top" }, class: "theme-button-accent inline-flex px-4 py-2 text-sm shadow-sm" %>
+        <%= link_to "Выписки", bank_statements_path, data: { turbo_frame: "_top" }, class: "theme-button-primary inline-flex px-4 py-2 text-sm" %>
+      </div>
     </div>
+
+    <%= form_with url: root_path, method: :get, local: true, data: { turbo_frame: "dashboard" }, class: "mb-6 flex flex-wrap items-end gap-3" do |form| %>
+      <div>
+        <%= form.label :from, "С", class: "form-label block text-xs font-bold" %>
+        <%= form.date_field :from, value: @from, class: "theme-input rounded-md" %>
+      </div>
+      <div>
+        <%= form.label :to, "По", class: "form-label block text-xs font-bold" %>
+        <%= form.date_field :to, value: @to, class: "theme-input rounded-md" %>
+      </div>
+      <div>
+        <%= form.label :bank_name, "Банк", class: "form-label block text-xs font-bold" %>
+        <%= form.select :bank_name, [["Все банки", ""]] + popular_banks, { selected: @bank_name }, class: "theme-input rounded-md" %>
+      </div>
+      <%= form.submit "Применить", class: "theme-button-primary cursor-pointer" %>
+      <%= link_to "Текущий месяц", root_path(bank_name: @bank_name), class: "theme-button-primary" %>
+      <%= link_to "Весь период", root_path(from: current_user.financial_transactions.minimum(:transaction_date), to: current_user.financial_transactions.maximum(:transaction_date), bank_name: @bank_name), class: "theme-button-primary" %>
+    <% end %>
 
     <!-- 1. БЛОК СВОДКИ (Grid-сетка) -->
     <!-- На мобильных это 1 колонка (grid-cols-1), на экранах от размера 'sm' — 3 колонки (sm:grid-cols-3) -->
@@ -25,7 +47,7 @@
       <div class="bg-white dark:bg-brand-purpleLight overflow-hidden shadow rounded-xl border border-gray-100 dark:border-brand-purple transition-colors">
         <div class="px-4 py-5 sm:p-6">
           <dt class="text-sm font-medium text-gray-500 dark:text-gray-300">Общий баланс</dt>
-          <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">125 000 ₽</dd>
+          <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-white"><%= number_to_currency(@total_income - @total_expenses, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %></dd>
         </div>
       </div>
 
@@ -33,7 +55,7 @@
       <div class="bg-white dark:bg-brand-purpleLight overflow-hidden shadow rounded-xl border border-gray-100 dark:border-brand-purple transition-colors">
         <div class="px-4 py-5 sm:p-6">
           <dt class="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">Доходы</dt>
-          <dd class="mt-1 text-3xl font-semibold text-green-600 dark:text-green-400">+ 150 000 ₽</dd>
+          <dd class="mt-1 text-3xl font-semibold text-green-600 dark:text-green-400">+ <%= number_to_currency(@total_income, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %></dd>
         </div>
       </div>
 
@@ -41,7 +63,7 @@
       <div class="bg-white dark:bg-brand-purpleLight overflow-hidden shadow rounded-xl border border-gray-100 dark:border-brand-purple transition-colors">
         <div class="px-4 py-5 sm:p-6">
           <dt class="text-sm font-medium text-gray-500 dark:text-gray-300 truncate">Расходы</dt>
-          <dd class="mt-1 text-3xl font-semibold text-red-600 dark:text-red-400">- 25 000 ₽</dd>
+          <dd class="mt-1 text-3xl font-semibold text-red-600 dark:text-red-400">- <%= number_to_currency(@total_expenses, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %></dd>
         </div>
       </div>
     </div>
@@ -53,26 +75,83 @@
       <!-- Используем dashed (пунктирную) рамку, чтобы показать, что это плейсхолдер -->
       <div class="bg-white dark:bg-brand-purpleLight shadow rounded-xl p-6 flex flex-col items-center justify-center h-72 border-2 border-dashed border-gray-300 dark:border-gray-600 transition-colors">
         <svg class="w-12 h-12 text-gray-300 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
-        <span class="text-gray-500 dark:text-gray-300 font-medium">Здесь будет график расходов по категориям</span>
-        <span class="text-sm text-gray-400 dark:text-gray-500 mt-2">(Интеграция Chart.js в будущем)</span>
+        <span class="text-gray-500 dark:text-gray-300 font-medium">Расходы по категориям</span>
+        <% if @category_totals.any? %>
+          <div class="mt-3 w-full space-y-1">
+            <% @category_totals.first(5).each do |name, amount| %>
+              <div class="flex justify-between text-sm text-gray-600 dark:text-gray-300">
+                <span><%= name || "Неопределено" %></span>
+                <span><%= number_to_currency(amount, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %></span>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <span class="text-sm text-gray-400 dark:text-gray-500 mt-2">Нет расходов за период</span>
+        <% end %>
       </div>
 
       <!-- Заглушка: Динамика баланса -->
       <div class="bg-white dark:bg-brand-purpleLight shadow rounded-xl p-6 flex flex-col items-center justify-center h-72 border-2 border-dashed border-gray-300 dark:border-gray-600 transition-colors">
         <svg class="w-12 h-12 text-gray-300 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-        <span class="text-gray-500 dark:text-gray-300 font-medium">Здесь будет график динамики баланса</span>
-        <span class="text-sm text-gray-400 dark:text-gray-500 mt-2">(Линейный график)</span>
+        <span class="text-gray-500 dark:text-gray-300 font-medium">Динамика баланса</span>
+        <span class="text-sm text-gray-400 dark:text-gray-500 mt-2">Линейный график будет добавлен следующим этапом</span>
+      </div>
+      <div class="px-6 py-3 flex justify-between text-sm">
+        <% if @page > 1 %>
+          <%= link_to "← Новее", root_path(from: @from, to: @to, bank_name: @bank_name, page: @page - 1), class: "theme-button-primary" %>
+        <% else %>
+          <span></span>
+        <% end %>
+        <% if @has_next_page %>
+          <%= link_to "Старше →", root_path(from: @from, to: @to, bank_name: @bank_name, page: @page + 1), class: "theme-button-primary" %>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-brand-purpleLight shadow rounded-xl border border-gray-100 dark:border-brand-purple overflow-hidden">
+      <div class="px-4 py-5 border-b border-gray-200 dark:border-brand-purple sm:px-6">
+        <h2 class="text-lg font-medium text-gray-900 dark:text-white">Последние операции</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody class="bg-white dark:bg-brand-purpleLight divide-y divide-gray-200 dark:divide-gray-700">
+            <% if @recent_transactions.any? %>
+              <% @recent_transactions.each do |transaction| %>
+                <tr>
+                  <td class="table-cell px-6 py-4 text-sm font-bold"><%= l(transaction.transaction_date) %></td>
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white" title="<%= transaction.merchant %>"><%= merchant_label(transaction.merchant) %></td>
+                  <td class="px-6 py-4 text-sm font-semibold <%= transaction.transaction_type == "income" ? "text-green-600" : "text-red-600" %>">
+                    <%= transaction.transaction_type == "income" ? "+" : "-" %> <%= number_to_currency(transaction.amount, unit: "₽", format: "%n %u", delimiter: " ", separator: ",") %>
+                  </td>
+                  <td class="table-cell px-6 py-4 text-sm font-bold"><%= transaction.category&.name || "Без категории" %></td>
+                </tr>
+              <% end %>
+            <% else %>
+              <tr>
+                <td class="table-cell px-6 py-8 text-center text-sm font-bold" colspan="4">
+                  <% if current_user.financial_transactions.exists? %>
+                    За выбранный период операций нет.
+                    <%= link_to "Показать весь период", root_path(from: current_user.financial_transactions.minimum(:transaction_date), to: current_user.financial_transactions.maximum(:transaction_date)), class: "theme-button" %>
+                  <% else %>
+                    Загрузите первую выписку, чтобы увидеть операции.
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
       </div>
     </div>
 
   </div>
+  </turbo-frame>
 
 <% else %>
   <!-- ========================================== -->
   <!-- ЛЕНДИНГ (Виден гостям)                     -->
   <!-- ========================================== -->
   
-  <div class="bg-white dark:bg-brand-purple min-h-[calc(100vh-80px)] flex flex-col justify-center transition-colors">
+  <div class="landing-shell theme-surface flex flex-col justify-center transition-colors">
     <div class="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8 text-center">
       <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white sm:text-5xl sm:tracking-tight lg:text-6xl transition-colors">
         Возьмите финансы под <span class="text-brand-orange">контроль</span>
@@ -83,8 +162,8 @@
       
       <!-- Кнопки призыва к действию -->
       <div class="mt-8 flex justify-center gap-4">
-        <%= link_to "Начать бесплатно", new_user_registration_path, class: "inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-brand-orange hover:bg-brand-orangeHover transition-colors" %>
-        <%= link_to "Уже есть аккаунт", new_user_session_path, class: "inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-brand-orange bg-orange-100 hover:bg-orange-200 dark:text-white dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors" %>
+        <%= link_to "Начать бесплатно", new_user_registration_path, class: "theme-button-accent inline-flex px-6 py-3 text-base font-extrabold" %>
+        <%= link_to "Уже есть аккаунт", new_user_session_path, class: "theme-button inline-flex px-6 py-3 text-base" %>
       </div>
     </div>
   </div>

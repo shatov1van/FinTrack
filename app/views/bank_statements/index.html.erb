@@ -1,0 +1,55 @@
+<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <%= link_to "← На главную", root_path, data: { turbo_frame: "_top" }, class: "theme-button-primary" %>
+      <h1 class="theme-heading text-2xl font-bold">Выписки</h1>
+    </div>
+    <%= link_to "Загрузить выписку", import_path, data: { turbo_frame: "_top" }, class: "theme-button-primary" %>
+  </div>
+
+  <div class="theme-card shadow rounded-xl overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="theme-table-head">
+        <tr>
+          <th class="table-header px-6 py-3 text-left text-xs font-bold">Файл</th>
+          <th class="table-header px-6 py-3 text-left text-xs font-bold">Банк</th>
+          <th class="table-header px-6 py-3 text-left text-xs font-bold">Период</th>
+          <th class="table-header px-6 py-3 text-left text-xs font-bold">Статус</th>
+          <th class="table-header px-6 py-3 text-left text-xs font-bold">Операции</th>
+          <th class="px-6 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        <% @bank_statements.each do |statement| %>
+          <tr>
+            <td class="table-cell px-6 py-4 text-sm font-bold"><%= statement.file_name %></td>
+            <td class="table-cell px-6 py-4 text-sm font-bold"><%= statement.bank_name.presence || "Определяется" %></td>
+            <td class="table-cell px-6 py-4 text-sm font-bold"><%= [statement.period_start, statement.period_end].compact.map { |date| l(date) }.join(" — ").presence || "—" %></td>
+            <td class="table-cell px-6 py-4 text-sm font-bold">
+              <span class="rounded-full px-2 py-1 bg-gray-100"><%= statement.status %></span>
+              <% if statement.error_message.present? %>
+                <p class="mt-1 text-xs text-red-600"><%= statement.error_message %></p>
+              <% end %>
+            </td>
+            <td class="table-cell px-6 py-4 text-sm font-bold"><%= statement.imported_count %> / <%= statement.duplicate_count %> дублей</td>
+            <td class="px-6 py-4 text-right text-sm">
+              <div class="statement-actions">
+              <% if statement.status == "needs_bank_selection" %>
+                <%= form_with url: choose_bank_bank_statement_path(statement), method: :post, class: "inline-flex gap-1" do |form| %>
+                  <%= form.select :bank_name, popular_banks, {}, class: "theme-input rounded text-xs" %>
+                  <%= form.submit "Выбрать", class: "theme-button-primary statement-action cursor-pointer" %>
+                <% end %>
+              <% end %>
+              <%= button_to "Повторить", reparse_bank_statement_path(statement), method: :post, class: "theme-button-primary statement-action cursor-pointer" %>
+              <% unless statement.archived? %>
+                <%= button_to "Архив", archive_bank_statement_path(statement), method: :post, class: "theme-button-primary statement-action cursor-pointer" %>
+              <% end %>
+              <%= button_to "Удалить", bank_statement_path(statement), method: :delete, class: "theme-button-danger statement-action cursor-pointer", data: { turbo_confirm: "Удалить выписку и ее операции?" } %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

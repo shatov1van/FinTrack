@@ -18,19 +18,19 @@
     <link rel="apple-touch-icon" href="/icon.png">
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
-    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "tailwind", "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
-  <body class="bg-gray-50 dark:bg-brand-purple transition-colors duration-300 min-h-screen">
+  <body class="page-pattern transition-colors duration-300 min-h-screen">
     <!-- НАЧАЛО ШАПКИ -->
     <header class="p-4 bg-gray-800 dark:bg-gray-900 text-white flex justify-between items-center shadow-md transition-colors duration-300">
       <div class="font-bold text-xl text-brand-orange">FinTrack</div>
       
       <div class="flex gap-4 items-center">
         <!-- Кнопка переключения темы -->
-        <button id="theme-toggle" type="button" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition-colors cursor-pointer border border-gray-600">
-          🌓 Тема
+        <button id="theme-toggle" type="button" class="theme-toggle" aria-label="Переключить тему" title="Переключить тему">
+          <span id="theme-icon" aria-hidden="true">☀</span>
         </button>
 
         <% if user_signed_in? %>
@@ -38,10 +38,10 @@
           <!-- Экран, на котором видно, что вы залогинены -->
 
           <!-- Работа с сессиями: кнопка выхода -->
-          <%= button_to "Выйти", destroy_user_session_path, method: :delete, class: "bg-brand-orange px-3 py-1 rounded hover:bg-brand-orangeHover transition-colors cursor-pointer text-white border-none" %>
+          <%= button_to "Выйти", destroy_user_session_path, method: :delete, class: "theme-button-accent px-3 py-1 rounded cursor-pointer border-none" %>
         <% else %>
-          <%= link_to "Войти", new_user_session_path, class: "bg-gray-700 px-3 py-1 rounded hover:bg-gray-600 transition-colors text-white" %>
-          <%= link_to "Регистрация", new_user_registration_path, class: "bg-brand-orange px-3 py-1 rounded hover:bg-brand-orangeHover transition-colors text-white" %>
+          <%= link_to "Войти", new_user_session_path, class: "theme-header-orange" %>
+          <%= link_to "Регистрация", new_user_registration_path, class: "theme-header-orange" %>
         <% end %>
       </div>
     </header>
@@ -69,7 +69,11 @@
             document.documentElement.classList.toggle('dark');
             const isDark = document.documentElement.classList.contains('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            const icon = document.getElementById('theme-icon');
+            if (icon) icon.textContent = isDark ? '☾' : '☀';
           };
+          const icon = document.getElementById('theme-icon');
+          if (icon) icon.textContent = document.documentElement.classList.contains('dark') ? '☾' : '☀';
         }
       });
     </script>
