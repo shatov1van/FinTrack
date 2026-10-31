@@ -15,25 +15,28 @@
       </div>
       
       <!-- Кнопка перехода на страницу загрузки -->
-      <%= link_to "Загрузить выписку", import_path, data: { turbo_frame: "_top" }, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-brand-orange hover:bg-brand-orangeHover transition-colors shadow-sm" %>
+      <div class="flex flex-col items-stretch gap-2">
+        <%= link_to "Загрузить выписку", import_path, data: { turbo_frame: "_top" }, class: "theme-button-accent inline-flex px-4 py-2 text-sm shadow-sm" %>
+        <%= link_to "Выписки", bank_statements_path, data: { turbo_frame: "_top" }, class: "theme-button-primary inline-flex px-4 py-2 text-sm" %>
+      </div>
     </div>
 
     <%= form_with url: root_path, method: :get, local: true, data: { turbo_frame: "dashboard" }, class: "mb-6 flex flex-wrap items-end gap-3" do |form| %>
       <div>
-        <%= form.label :from, "С", class: "form-label block text-xs" %>
+        <%= form.label :from, "С", class: "form-label block text-xs font-bold" %>
         <%= form.date_field :from, value: @from, class: "theme-input rounded-md" %>
       </div>
       <div>
-        <%= form.label :to, "По", class: "form-label block text-xs" %>
+        <%= form.label :to, "По", class: "form-label block text-xs font-bold" %>
         <%= form.date_field :to, value: @to, class: "theme-input rounded-md" %>
       </div>
       <div>
-        <%= form.label :bank_name, "Банк", class: "form-label block text-xs" %>
+        <%= form.label :bank_name, "Банк", class: "form-label block text-xs font-bold" %>
         <%= form.select :bank_name, [["Все банки", ""]] + popular_banks, { selected: @bank_name }, class: "theme-input rounded-md" %>
       </div>
-      <%= form.submit "Применить", class: "action-button px-4 py-2 rounded-md cursor-pointer" %>
-      <%= link_to "Текущий месяц", root_path, class: "text-sm text-blue-600" %>
-      <%= link_to "Весь период", root_path(from: current_user.financial_transactions.minimum(:transaction_date), to: current_user.financial_transactions.maximum(:transaction_date)), class: "theme-link text-sm font-bold" %>
+      <%= form.submit "Применить", class: "theme-button-primary cursor-pointer" %>
+      <%= link_to "Текущий месяц", root_path(bank_name: @bank_name), class: "theme-button-primary" %>
+      <%= link_to "Весь период", root_path(from: current_user.financial_transactions.minimum(:transaction_date), to: current_user.financial_transactions.maximum(:transaction_date), bank_name: @bank_name), class: "theme-button-primary" %>
     <% end %>
 
     <!-- 1. БЛОК СВОДКИ (Grid-сетка) -->
@@ -95,12 +98,12 @@
       </div>
       <div class="px-6 py-3 flex justify-between text-sm">
         <% if @page > 1 %>
-          <%= link_to "← Новее", root_path(from: @from, to: @to, bank_name: @bank_name, page: @page - 1), class: "text-blue-600" %>
+          <%= link_to "← Новее", root_path(from: @from, to: @to, bank_name: @bank_name, page: @page - 1), class: "theme-button-primary" %>
         <% else %>
           <span></span>
         <% end %>
         <% if @has_next_page %>
-          <%= link_to "Старше →", root_path(from: @from, to: @to, bank_name: @bank_name, page: @page + 1), class: "text-blue-600" %>
+          <%= link_to "Старше →", root_path(from: @from, to: @to, bank_name: @bank_name, page: @page + 1), class: "theme-button-primary" %>
         <% end %>
       </div>
     </div>
@@ -128,7 +131,7 @@
                 <td class="table-cell px-6 py-8 text-center text-sm font-bold" colspan="4">
                   <% if current_user.financial_transactions.exists? %>
                     За выбранный период операций нет.
-                    <%= link_to "Показать весь период", root_path(from: current_user.financial_transactions.minimum(:transaction_date), to: current_user.financial_transactions.maximum(:transaction_date)), class: "theme-link underline" %>
+                    <%= link_to "Показать весь период", root_path(from: current_user.financial_transactions.minimum(:transaction_date), to: current_user.financial_transactions.maximum(:transaction_date)), class: "theme-button" %>
                   <% else %>
                     Загрузите первую выписку, чтобы увидеть операции.
                   <% end %>
@@ -148,7 +151,7 @@
   <!-- ЛЕНДИНГ (Виден гостям)                     -->
   <!-- ========================================== -->
   
-  <div class="bg-white dark:bg-brand-purple min-h-[calc(100vh-80px)] flex flex-col justify-center transition-colors">
+  <div class="landing-shell theme-surface flex flex-col justify-center transition-colors">
     <div class="max-w-7xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:px-8 text-center">
       <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white sm:text-5xl sm:tracking-tight lg:text-6xl transition-colors">
         Возьмите финансы под <span class="text-brand-orange">контроль</span>
@@ -159,8 +162,8 @@
       
       <!-- Кнопки призыва к действию -->
       <div class="mt-8 flex justify-center gap-4">
-        <%= link_to "Начать бесплатно", new_user_registration_path, class: "inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-brand-orange hover:bg-brand-orangeHover transition-colors" %>
-        <%= link_to "Уже есть аккаунт", new_user_session_path, class: "inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-brand-orange bg-orange-100 hover:bg-orange-200 dark:text-white dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors" %>
+        <%= link_to "Начать бесплатно", new_user_registration_path, class: "theme-button-accent inline-flex px-6 py-3 text-base font-extrabold" %>
+        <%= link_to "Уже есть аккаунт", new_user_session_path, class: "theme-button inline-flex px-6 py-3 text-base" %>
       </div>
     </div>
   </div>

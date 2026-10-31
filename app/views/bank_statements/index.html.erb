@@ -1,10 +1,10 @@
 <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
   <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-4">
-      <%= link_to "← На главную", root_path, data: { turbo_frame: "_top" }, class: "theme-link font-bold" %>
+      <%= link_to "← На главную", root_path, data: { turbo_frame: "_top" }, class: "theme-button-primary" %>
       <h1 class="theme-heading text-2xl font-bold">Выписки</h1>
     </div>
-    <%= link_to "Загрузить выписку", import_path, data: { turbo_frame: "_top" }, class: "px-4 py-2 rounded-md bg-green-600 text-white font-bold" %>
+    <%= link_to "Загрузить выписку", import_path, data: { turbo_frame: "_top" }, class: "theme-button-primary" %>
   </div>
 
   <div class="theme-card shadow rounded-xl overflow-hidden">
@@ -32,18 +32,20 @@
               <% end %>
             </td>
             <td class="table-cell px-6 py-4 text-sm font-bold"><%= statement.imported_count %> / <%= statement.duplicate_count %> дублей</td>
-            <td class="px-6 py-4 text-right text-sm space-x-2">
+            <td class="px-6 py-4 text-right text-sm">
+              <div class="statement-actions">
               <% if statement.status == "needs_bank_selection" %>
                 <%= form_with url: choose_bank_bank_statement_path(statement), method: :post, class: "inline-flex gap-1" do |form| %>
                   <%= form.select :bank_name, popular_banks, {}, class: "theme-input rounded text-xs" %>
-                  <%= form.submit "Выбрать", class: "text-blue-600 cursor-pointer" %>
+                  <%= form.submit "Выбрать", class: "theme-button-primary statement-action cursor-pointer" %>
                 <% end %>
               <% end %>
-              <%= button_to "Повторить", reparse_bank_statement_path(statement), method: :post, class: "text-blue-600" %>
+              <%= button_to "Повторить", reparse_bank_statement_path(statement), method: :post, class: "theme-button-primary statement-action cursor-pointer" %>
               <% unless statement.archived? %>
-                <%= button_to "Архив", archive_bank_statement_path(statement), method: :post, class: "text-gray-600" %>
+                <%= button_to "Архив", archive_bank_statement_path(statement), method: :post, class: "theme-button-primary statement-action cursor-pointer" %>
               <% end %>
-              <%= button_to "Удалить", bank_statement_path(statement), method: :delete, class: "text-red-600", data: { turbo_confirm: "Удалить выписку и ее операции?" } %>
+              <%= button_to "Удалить", bank_statement_path(statement), method: :delete, class: "theme-button-danger statement-action cursor-pointer", data: { turbo_confirm: "Удалить выписку и ее операции?" } %>
+              </div>
             </td>
           </tr>
         <% end %>
