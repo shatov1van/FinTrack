@@ -141,7 +141,13 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: bundle exec ruby bin/rails db:test:prepare test:system
+        run: |
+          bundle exec ruby bin/rails db:test:prepare
+          if compgen -G "test/system/**/*_test.rb" > /dev/null; then
+            bundle exec ruby bin/rails test:system
+          else
+            echo "No system tests found; skipping system-test run."
+          fi
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v4

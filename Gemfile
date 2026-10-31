@@ -41,7 +41,8 @@ gem "thruster", require: false
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
-gem "roo", "~> 2.10"
+gem "roo", "~> 4.0"
+gem "rubyzip", ">= 3.4.0", "< 4.0"
 gem "pdf-reader", "~> 2.13"
 gem "csv", "~> 3.3"
 
