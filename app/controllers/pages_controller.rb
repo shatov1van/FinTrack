@@ -23,7 +23,7 @@ class PagesController < ApplicationController
     @bank_name = params[:bank_name].presence
     @transactions = filtered_transactions
     @page = [ params.fetch(:page, 1).to_i, 1 ].max
-    @recent_transactions = @transactions.includes(:category).order(transaction_date: :desc).limit(10).offset((@page - 1) * 10)
+    @recent_transactions = @transactions.includes(:category).order(transaction_date: :desc, transaction_time: :desc, id: :desc).limit(10).offset((@page - 1) * 10)
     @has_next_page = @transactions.offset(@page * 10).exists?
     @total_income = @transactions.where(transaction_type: "income").sum(:amount)
     @total_expenses = @transactions.where(transaction_type: "expense").sum(:amount)

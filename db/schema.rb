@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_30_153100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -80,7 +80,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_30_153100) do
     t.boolean "is_subscription", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["bank_statement_id", "transaction_date", "amount", "merchant"], name: "index_financial_transactions_on_statement_and_identity", unique: true
+    t.time "transaction_time"
+    t.index ["bank_statement_id", "transaction_date", "transaction_time", "amount", "merchant"], name: "index_financial_transactions_on_statement_and_identity", unique: true
     t.index ["bank_statement_id"], name: "index_financial_transactions_on_bank_statement_id"
     t.index ["category_id"], name: "index_financial_transactions_on_category_id"
   end

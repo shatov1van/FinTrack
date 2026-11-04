@@ -41,9 +41,12 @@ class StatementImporter
 
   def process
     validate_file!
+    reparse = statement.status == "pending" && statement.financial_transactions.exists?
     statement.update!(status: "processing", error_message: nil)
+    statement.financial_transactions.delete_all if reparse
     parser = parser_for_file
-    if extension == "pdf" && statement.bank_name.blank? && !parser.is_a?(StatementParsers::SberbankPdf)
+    if extension == "pdf" && statement.bank_name.blank? &&
+        !parser.is_a?(StatementParsers::SberbankPdf) && !parser.is_a?(StatementParsers::TbankPdf)
       statement.update!(status: "needs_bank_selection")
       return statement
     end
@@ -100,7 +103,7 @@ class StatementImporter
   end
 
   def parser_for_file
-    sample = uploaded_file.tempfile.rewind && uploaded_file.tempfile.read(50_000).to_s
+    sample = uploaded_file.tempfile.rewind && utf8_text(uploaded_file.tempfile.read(50_000))
     uploaded_file.tempfile.rewind
     StatementParsers::Registry.for(format: extension, bank_name: statement&.bank_name, sample:, importer: self)
   end
@@ -117,6 +120,10 @@ class StatementImporter
 
   def parse_pdf_rows
     parse_pdf
+  end
+
+  def parse_tbank_pdf_rows
+    parse_tbank_pdf
   end
 
   private
@@ -147,7 +154,7 @@ class StatementImporter
 
   def parse_pdf
     PDF::Reader.new(uploaded_file.tempfile.path).pages.flat_map do |page|
-      lines = page.text.lines.map { |line| line.to_s.gsub("\u00a0", " ").strip }.reject(&:blank?)
+      lines = utf8_text(page.text).lines.map { |line| line.gsub("\u00a0", " ").strip }.reject(&:blank?)
       operation_starts = lines.each_index.select { |index| operation_start?(lines[index]) }
       operation_starts.each_with_index.filter_map do |start_index, position|
         end_index = operation_starts[position + 1] || lines.length
@@ -156,6 +163,71 @@ class StatementImporter
     end
   rescue PDF::Reader::MalformedPDFError, ArgumentError => e
     raise Error, "PDF имеет неверный формат: #{e.message}"
+  end
+
+  def parse_tbank_pdf
+    PDF::Reader.new(uploaded_file.tempfile.path).pages.flat_map do |page|
+      lines = utf8_text(page.text).lines.map { |line| line.gsub("\u00a0", " ").strip }.reject(&:blank?)
+      operation_starts = lines.each_index.select { |index| tbank_operation_start?(lines, index) }
+      operation_starts.each_with_index.filter_map do |start_index, position|
+        end_index = operation_starts[position + 1] || lines.length
+        parse_tbank_pdf_block(lines[start_index...end_index])
+      end
+    end
+  rescue PDF::Reader::MalformedPDFError, ArgumentError => e
+    raise Error, "PDF имеет неверный формат: #{e.message}"
+  end
+
+  def tbank_operation_start?(lines, index)
+    line = lines[index]
+    return true if line.match?(
+      /\A\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\s+\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\b.*[+\-−]?\d[\d\s]*(?:[.,]\d{2})/
+    )
+    return true if line.match?(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\s+\d{1,2}:\d{2}\b/)
+
+    line.match?(/\A\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\z/) &&
+      lines[index + 1].to_s.match?(/\A\d{1,2}:\d{2}\z/)
+  end
+
+  def parse_tbank_pdf_block(lines)
+    text = lines.join(" ").split(/АО«?ТБанк|Пополнения:/i).first
+    date_match = text.match(/\b(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})\b/)
+    return unless date_match
+
+    date = parse_date(date_match[1])
+    return unless date.year.between?(2000, Date.current.year + 1)
+
+    amount_source = text
+      .gsub(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\b/, " ")
+      .gsub(/\b\d{1,2}:\d{2}\b/, " ")
+    amount_matches = amount_source.to_enum(:scan, /[+\-−]?\d[\d\s]*(?:[.,]\d{2})(?:\s*(?:₽|RUB|руб\.))?/i)
+      .map { Regexp.last_match[0] }
+    return if amount_matches.empty?
+
+    amount_token = amount_matches.first
+    amount = parse_amount(amount_token)
+    return if amount.zero?
+    transaction_time = parse_time(text.match(/\b\d{1,2}:\d{2}\b/)&.to_s)
+
+    merchant = text.dup
+      .gsub(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\b/, " ")
+      .gsub(/\b\d{1,2}:\d{2}\b/, " ")
+      .gsub(/[+\-−]?\d[\d\s]*(?:[.,]\d{2})(?:\s*(?:₽|RUB|руб\.))?/i, " ")
+      .gsub(/\b\d{4}\b/, " ")
+      .gsub(/[|]/, " ")
+      .gsub(/\s+/, " ")
+      .strip
+    return if merchant.blank? || merchant.match?(/\A[\d\s:.,+\-−]+\z/)
+
+    {
+      date: date,
+      transaction_time: transaction_time,
+      merchant: merchant,
+      amount: amount.abs,
+      transaction_type: pdf_transaction_type(merchant, amount, amount_token)
+    }
+  rescue Date::Error, ArgumentError
+    nil
   end
 
   def operation_start?(line)
@@ -187,6 +259,7 @@ class StatementImporter
 
     {
       date: date,
+      transaction_time: parse_time(first_line.match(/\b\d{1,2}:\d{2}\b/)&.to_s),
       merchant: merchant,
       amount: amount.abs,
       transaction_type: pdf_transaction_type(merchant, amount, amount_token)
@@ -203,9 +276,15 @@ class StatementImporter
       .strip
   end
 
+  def utf8_text(value)
+    value.to_s.force_encoding(Encoding::UTF_8).scrub
+  end
+
   def pdf_transaction_type(merchant, amount, amount_token)
     normalized = merchant.downcase
-    return "income" if amount_token.match?(/\A[+]/) || normalized.match?(/зачисл|пополн|зарплат|вклад|перевод на карту/)
+    return "income" if amount_token.match?(/\A\s*\+/)
+    return "expense" if amount_token.match?(/\A\s*[-−]/)
+    return "income" if normalized.match?(/зачисл|пополн|зарплат|вклад|перевод на карту/)
     return "expense" if normalized.match?(/покупк|оплат|списан|перевод на/)
 
     "expense"
@@ -215,6 +294,7 @@ class StatementImporter
     values = raw.transform_keys { |key| normalize_header(key) }
     merchant = value_for(values, "merchant", "description", "operation", "назначение", "описание")
     date = value_for(values, "date", "transaction_date", "дата")
+    transaction_time = value_for(values, "time", "transaction_time", "время")
     amount_key = values.key?("debit") ? "debit" : values.key?("credit") ? "credit" : nil
     amount_key ||= values.keys.find { |key| key.include?("amount") || key.include?("sum") || key.include?("сумм") }
     amount_value = values[amount_key] if amount_key
@@ -232,7 +312,13 @@ class StatementImporter
         amount_key == "credit" || amount.positive? ? "income" : "expense"
       end
     end
-    { date: parse_date(date), merchant: clean_merchant(merchant), amount: amount.abs, transaction_type: type }
+    {
+      date: parse_date(date),
+      transaction_time: parse_time(transaction_time),
+      merchant: clean_merchant(merchant),
+      amount: amount.abs,
+      transaction_type: type
+    }
   rescue ArgumentError
     nil
   end
@@ -271,17 +357,32 @@ class StatementImporter
     Date.parse(normalized)
   end
 
+  def parse_time(value)
+    match = value.to_s.match(/\b(\d{1,2}:\d{2}(?::\d{2})?)\b/)
+    return unless match
+
+    format = match[1].count(":") == 2 ? "%H:%M:%S" : "%H:%M"
+    DateTime.strptime(match[1], format).strftime("%H:%M:%S")
+  rescue Date::Error
+    nil
+  end
+
   def clean_merchant(value)
     value.to_s.gsub(/\s+/, " ").strip
   end
 
   def duplicate_transaction?(statement, row)
     normalized_merchant = clean_merchant(row[:merchant]).downcase
-    statement.user.financial_transactions
+    scope = statement.user.financial_transactions
       .joins(:bank_statement)
       .where(bank_statements: { archived: false })
       .where(transaction_date: row[:date], amount: row[:amount], transaction_type: row[:transaction_type])
-      .any? { |transaction| clean_merchant(transaction.merchant).downcase == normalized_merchant }
+    scope = if row[:transaction_time].present?
+      scope.where(transaction_time: row[:transaction_time])
+    else
+      scope.where(transaction_time: nil)
+    end
+    scope.any? { |transaction| clean_merchant(transaction.merchant).downcase == normalized_merchant }
   end
 
   attr_reader :statement
@@ -291,6 +392,7 @@ class StatementImporter
       amount: row[:amount],
       transaction_type: row[:transaction_type],
       transaction_date: row[:date],
+      transaction_time: row[:transaction_time],
       merchant: row[:merchant]
     ).auto_categorize!
   end
