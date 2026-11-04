@@ -172,6 +172,26 @@ RSpec.describe StatementImporter do
     expect(row[:transaction_type]).to eq("expense")
   end
 
+  it "does not classify a Sberbank expense by footer totals" do
+    importer = described_class.new(user:, uploaded_file: nil)
+
+    row = importer.send(
+      :parse_pdf_block,
+      [
+        "01.09.2026 21:09 Супермаркеты 36,36 78,68",
+        "01.09.2026 651548 MAGNIT MM LUKASHOVKA RUS. Операция по карте ****8593",
+        "Продолжение на следующей странице",
+        "Пополнение 61 408,00",
+        "Списание 61 523,04"
+      ]
+    )
+
+    expect(row[:amount]).to eq(BigDecimal("36.36"))
+    expect(row[:transaction_type]).to eq("expense")
+    expect(row[:merchant]).to include("MAGNIT")
+    expect(row[:merchant]).not_to include("Пополнение")
+  end
+
   it "keeps identical merchants and amounts when operation times differ" do
     importer = described_class.new(user:, uploaded_file: nil)
 

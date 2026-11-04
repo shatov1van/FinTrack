@@ -158,7 +158,7 @@ class StatementImporter
       operation_starts = lines.each_index.select { |index| operation_start?(lines[index]) }
       operation_starts.each_with_index.filter_map do |start_index, position|
         end_index = operation_starts[position + 1] || lines.length
-        parse_pdf_block(lines[start_index...end_index])
+        parse_pdf_block(trim_pdf_block(lines[start_index...end_index]))
       end
     end
   rescue PDF::Reader::MalformedPDFError, ArgumentError => e
@@ -234,6 +234,12 @@ class StatementImporter
     line.match?(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4}\s+\d{1,2}:\d{2}\b/)
   end
 
+  def trim_pdf_block(lines)
+    lines.take_while do |line|
+      !line.match?(/Продолжение на следующей странице|ИТОГО ПО ОПЕРАЦИЯМ|Дата формирования документа|Проверить подпись/i)
+    end
+  end
+
   def parse_pdf_block(lines)
     first_line = lines.first.to_s
     date_match = first_line.match(/\b(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})\b/)
@@ -271,6 +277,11 @@ class StatementImporter
   def clean_pdf_merchant(value)
     value.to_s
       .tr("\u00a0", " ")
+      .gsub(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}\b/, " ")
+      .gsub(/\b\d{1,2}:\d{2}(?::\d{2})?\b/, " ")
+      .gsub(/\*{2,}\d{2,6}\b/, " ")
+      .gsub(/\b\d{6}\b/, " ")
+      .gsub(/[+\-−]?\d[\d\s]*(?:[.,]\d{1,2})(?:\s*(?:₽|RUB|руб\.))?/i, " ")
       .gsub(/\s+/, " ")
       .gsub(/\A[\s|:;,\-−]+|[\s|:;,\-−]+\z/, "")
       .strip
