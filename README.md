@@ -49,14 +49,44 @@ ruby bin/rails db:migrate
 Страница импорта автоматически обновляет список операций во время фонового парсинга, поэтому
 ручное обновление страницы после завершения job не требуется.
 
-## Деплой за Cloudflare
+## Деплой за Cloudflare и Neon
 
-Приложение рассчитано на схему `Cloudflare -> HTTPS origin -> Docker/Kamal`.
+Это Rails-приложение нельзя деплоить как Cloudflare Pages static site:
+`public/` содержит только статические assets и error pages, а маршрут `/` должен
+обрабатываться Rails/Puma. Cloudflare Pages с `pages_build_output_dir = "./public"`
+будет возвращать 404, потому что `public/index.html` отсутствует.
+
+Рабочая схема: `Cloudflare DNS/proxy -> HTTPS origin (VPS/Docker/Kamal) -> Neon PostgreSQL`.
+Neon — это только база данных, он не запускает Rails-приложение.
 В Cloudflare выберите режим SSL/TLS **Full (strict)**, укажите origin-сертификат
 Cloudflare на сервере и не публикуйте порт PostgreSQL или Docker Registry в интернет.
 Production требует переменные `APP_HOST`, `FINTRACK_SERVER`, `KAMAL_REGISTRY_SERVER`,
 `KAMAL_REGISTRY_USERNAME`, `KAMAL_REGISTRY_PASSWORD`, `FINTRACK_DATABASE_PASSWORD` и
-`RAILS_MASTER_KEY`. Реальные значения передаются через менеджер секретов, а не через Git.
+`RAILS_MASTER_KEY`. Для Neon также задайте `DATABASE_URL` с connection string из Neon
+и `sslmode=require`; переменная должна быть доступна контейнеру Rails в production.
+Реальные значения передаются через менеджер секретов, а не через Git.
+
+Проверка по шагам:
+
+1. Сначала откройте `https://ORIGIN_HOST/up` напрямую или через Cloudflare. Должен
+   вернуться HTTP 200. Если `/up` не отвечает, проблема в VPS/Docker/Kamal, а не в Neon.
+2. Проверьте, что DNS-запись домена указывает на публичный IP VPS, а proxy status
+   Cloudflare включен только после проверки origin.
+3. В Cloudflare установите SSL/TLS **Full (strict)** и убедитесь, что origin принимает
+   HTTPS на 443. Не используйте режим **Flexible**.
+4. В переменной `APP_HOST` указывайте только hostname, например `app.example.com`,
+   без `https://` и без пути. Если используется `www`, добавьте его в
+   `APP_HOST_ALIASES` через запятую.
+5. В Neon скопируйте pooled или direct connection string с `sslmode=require`.
+   Проверьте, что роль имеет права на создание/изменение таблиц, затем выполните
+   `bin/rails db:prepare` внутри production-контейнера.
+6. Посмотрите логи origin командой `bin/kamal logs`. Если запросы не появляются,
+   Cloudflare не доходит до origin; если появляются ошибки подключения, проверяйте
+   `DATABASE_URL`, `RAILS_MASTER_KEY` и доступ Neon.
+
+`wrangler.toml` намеренно не хранится в репозитории: Wrangler Pages/Workers не является
+runtime для этого Rails-приложения. Если нужен именно Cloudflare Pages, потребуется
+отдельный frontend и API, а текущий Rails-монолит туда переносить нельзя.
 
 Файл `.kamal/secrets.example` — только шаблон. Скопируйте его локально в
 `.kamal/secrets`; рабочий файл игнорируется Git.

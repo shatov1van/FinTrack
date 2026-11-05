@@ -40,6 +40,7 @@ registry:
 env:
   secret:
     - RAILS_MASTER_KEY
+    - DATABASE_URL
     - FINTRACK_DATABASE_PASSWORD
     - APP_HOST
     - APP_HOST_ALIASES
