@@ -33,6 +33,9 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# Local deployment secrets. Keep only the .example template in Git.
+/.kamal/secrets
+
 
 /app/assets/builds/*
 !/app/assets/builds/.keep

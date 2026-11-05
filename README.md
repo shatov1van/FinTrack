@@ -49,6 +49,36 @@ ruby bin/rails db:migrate
 Страница импорта автоматически обновляет список операций во время фонового парсинга, поэтому
 ручное обновление страницы после завершения job не требуется.
 
+## Деплой за Cloudflare
+
+Приложение рассчитано на схему `Cloudflare -> HTTPS origin -> Docker/Kamal`.
+В Cloudflare выберите режим SSL/TLS **Full (strict)**, укажите origin-сертификат
+Cloudflare на сервере и не публикуйте порт PostgreSQL или Docker Registry в интернет.
+Production требует переменные `APP_HOST`, `FINTRACK_SERVER`, `KAMAL_REGISTRY_SERVER`,
+`KAMAL_REGISTRY_USERNAME`, `KAMAL_REGISTRY_PASSWORD`, `FINTRACK_DATABASE_PASSWORD` и
+`RAILS_MASTER_KEY`. Реальные значения передаются через менеджер секретов, а не через Git.
+
+Файл `.kamal/secrets.example` — только шаблон. Скопируйте его локально в
+`.kamal/secrets`; рабочий файл игнорируется Git.
+
+### Что нельзя добавлять в Git
+
+Никогда не публикуйте и не отслеживайте:
+
+- `config/master.key`, любые `*.key`, `config/credentials/*.key`;
+- `.env`, `.env.*` и локальные файлы с переменными окружения;
+- `.kamal/secrets`;
+- загруженные банковские файлы и содержимое `storage/`;
+- логи, дампы БД, временные файлы и содержимое `tmp/`;
+- production-конфигурации с паролями, токенами, приватными ключами или cookie secrets;
+- резервные копии, скриншоты и экспортированные CSV/PDF/XLS/XLSX с персональными данными.
+
+В Git допускаются только зашифрованные Rails credentials
+`config/credentials.yml.enc`, шаблоны вроде `.kamal/secrets.example` и пустые
+файлы `.keep`. Перед публикацией проверяйте `git status`, `git ls-files` и историю
+репозитория; если секрет уже был закоммичен, одной записи в `.gitignore` недостаточно —
+секрет нужно немедленно отозвать и удалить из истории.
+
 ## Тестирование
 
 ```powershell

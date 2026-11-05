@@ -92,10 +92,27 @@ class StatementImporter
     raise Error, "Выберите файл." if uploaded_file.blank?
     raise Error, "Размер файла не должен превышать 10 МБ." if uploaded_file.size > MAX_FILE_SIZE
     raise Error, "Поддерживаются только CSV, Excel и PDF." unless EXTENSIONS.include?(extension)
+    raise Error, "Содержимое файла не соответствует его расширению." unless valid_file_signature?
   end
 
   def extension
     File.extname(uploaded_file.original_filename.to_s).delete(".").downcase
+  end
+
+  def valid_file_signature?
+    bytes = File.binread(uploaded_file.tempfile.path, 8)
+    case extension
+    when "pdf"
+      bytes.start_with?("%PDF-")
+    when "xlsx"
+      bytes.start_with?("PK\x03\x04".b)
+    when "xls"
+      bytes.start_with?("\xD0\xCF\x11\xE0".b)
+    when "csv"
+      !File.binread(uploaded_file.tempfile.path, 10_000).include?("\x00")
+    else
+      false
+    end
   end
 
   def parse_rows
