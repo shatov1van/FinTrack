@@ -258,6 +258,7 @@ class StatementImporter
   end
 
   def parse_pdf_block(lines)
+    lines = trim_pdf_block(lines)
     first_line = lines.first.to_s
     date_match = first_line.match(/\b(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{4})\b/)
     return unless date_match
