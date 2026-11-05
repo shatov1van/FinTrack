@@ -1,13 +1,13 @@
 <%- if controller_name != 'sessions' %>
-  <p><%= link_to "Log in", new_session_path(resource_name) %></p>
+  <%= link_to "Уже есть аккаунт? Войти", new_session_path(resource_name), class: "theme-button-primary text-sm mt-2" %><br />
 <% end %>
 
 <%- if devise_mapping.registerable? && controller_name != 'registrations' %>
-  <p><%= link_to "Sign up", new_registration_path(resource_name) %></p>
+  <%= link_to "Нет аккаунта? Зарегистрироваться", new_registration_path(resource_name), class: "theme-button-orange text-sm mt-2 font-extrabold" %><br />
 <% end %>
 
 <%- if devise_mapping.recoverable? && controller_name != 'passwords' && controller_name != 'registrations' %>
-  <p><%= link_to "Forgot your password?", new_password_path(resource_name) %></p>
+  <%= link_to "Забыли пароль?", new_password_path(resource_name), class: "theme-button-primary text-sm mt-2" %><br />
 <% end %>
 
 <%- if devise_mapping.confirmable? && controller_name != 'confirmations' %>

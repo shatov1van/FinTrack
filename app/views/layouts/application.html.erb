@@ -1,16 +1,15 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
   <head>
-    <title><%= content_for(:title) || "Fintrack" %></title>
+    <title><%= content_for(:title) || "FinTrack" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Fintrack">
+    <meta name="application-name" content="FinTrack">
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
     <%= yield :head %>
-
     <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
     <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
 
@@ -19,38 +18,42 @@
     <link rel="apple-touch-icon" href="/icon.png">
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
-    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "tailwind", "application", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
-  <!-- НАЧАЛО ШАПКИ -->
-  <header class="p-4 bg-gray-800 text-white flex justify-between items-center">
-    <div class="font-bold text-xl">FinTrack</div>
+  <body class="page-pattern transition-colors duration-300 min-h-screen">
+    <!-- НАЧАЛО ШАПКИ -->
+    <header class="p-4 bg-gray-800 dark:bg-gray-900 text-white flex justify-between items-center shadow-md transition-colors duration-300">
+      <div class="font-bold text-xl text-brand-orange">FinTrack</div>
+      
+      <div class="flex gap-4 items-center">
+        <!-- Кнопка переключения темы -->
+        <button id="theme-toggle" type="button" class="theme-toggle" aria-label="Переключить тему" title="Переключить тему">
+          <span id="theme-icon" aria-hidden="true">☀</span>
+        </button>
 
-    <div class="flex gap-4 items-center">
-      <% if user_signed_in? %>
-        <!-- Экран, на котором видно, что вы залогинены -->
-        <span>Привет, <%= current_user.email %>!</span>
+        <% if user_signed_in? %>
+          <span class="text-sm">Привет, <%= current_user.email %>!</span>
+          <!-- Экран, на котором видно, что вы залогинены -->
 
-        <!-- Работа с сессиями: кнопка выхода -->
-        <%= button_to "Выйти", destroy_user_session_path, method: :delete, class: "bg-red-500 px-3 py-1 rounded hover:bg-red-600" %>
-      <% else %>
-        <span>Вы гость</span>
-        <%= link_to "Войти", new_user_session_path, class: "bg-blue-500 px-3 py-1 rounded hover:bg-blue-600" %>
-        <%= link_to "Регистрация", new_user_registration_path, class: "bg-green-500 px-3 py-1 rounded hover:bg-green-600" %>
-      <% end %>
-    </div>
-  </header>
-  <!-- КОНЕЦ ШАПКИ -->
+          <!-- Работа с сессиями: кнопка выхода -->
+          <%= button_to "Выйти", destroy_user_session_path, method: :delete, class: "theme-button-accent px-3 py-1 rounded cursor-pointer border-none" %>
+        <% else %>
+          <%= link_to "Войти", new_user_session_path, class: "theme-header-orange" %>
+          <%= link_to "Регистрация", new_user_registration_path, class: "theme-header-orange" %>
+        <% end %>
+      </div>
+    </header>
+    <!-- КОНЕЦ ШАПКИ -->
 
-  <!-- Здесь будет отображаться контент конкретной страницы (например, дэшборда) -->
-  <main class="p-4">
-    <!-- Всплывающие уведомления Devise (успешный вход, ошибки и т.д.) -->
-    <p class="notice text-green-600"><%= notice %></p>
-    <p class="alert text-red-600"><%= alert %></p>
+    <!-- Здесь будет отображаться контент конкретной страницы (дэшборда) -->
+    <main class="p-4">
+      <!-- Всплывающие уведомления Devise (успешный вход, ошибки и т.д.) -->
+      <p class="notice text-green-600 dark:text-green-400"><%= notice %></p>
+      <p class="alert text-red-600 dark:text-red-400"><%= alert %></p>
+      <%= yield %>
+    </main>
 
-    <%= yield %>
-  </main>
-</body>
+  </body>
 </html>
