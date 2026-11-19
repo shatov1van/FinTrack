@@ -90,18 +90,21 @@ test:
 production:
   primary: &primary_production
     <<: *default
-    database: fintrack_production
-    username: fintrack
+    # database: fintrack_production
+    url: <%= ENV["DATABASE_URL_FINTRACK_DB"] %>
     password: <%= ENV["FINTRACK_DATABASE_PASSWORD"] %>
   cache:
     <<: *primary_production
-    database: fintrack_production_cache
+    #database: fintrack_production_cache
     migrations_paths: db/cache_migrate
+    url: <%= ENV["DATABASE_URL_CACHE_DB"] %>
   queue:
     <<: *primary_production
-    database: fintrack_production_queue
+    # database: fintrack_production_queue
     migrations_paths: db/queue_migrate
+    url: <%= ENV["DATABASE_URL_QUEUE_DB"] %>
   cable:
     <<: *primary_production
-    database: fintrack_production_cable
+    # database: fintrack_production_cable
     migrations_paths: db/cable_migrate
+    url: <%= ENV["DATABASE_URL_CABLE_DB"] %>
