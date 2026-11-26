@@ -59,8 +59,10 @@ Rails.application.configure do
   # config.action_mailer.raise_delivery_errors = false
 
   # Set host to be used by links generated in mailer templates.
+  app_host = ENV.fetch("APP_HOST", "localhost")
+
   config.action_mailer.default_url_options = {
-    host: ENV.fetch("APP_HOST"),
+    host: app_host,
     protocol: "https"
   }
 
@@ -85,7 +87,7 @@ Rails.application.configure do
 
   # Enable DNS rebinding protection and only accept the configured public hosts.
   config.hosts = [
-    ENV.fetch("APP_HOST"),
-    *ENV.fetch("APP_HOST_ALIASES", "").split(",").map(&:strip).reject(&:empty?)
+  app_host,
+  *ENV.fetch("APP_HOST_ALIASES", "").split(",").map(&:strip).reject(&:empty?)
   ]
 end
