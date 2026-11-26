@@ -50,6 +50,29 @@ RSpec.describe StatementImporter do
     file&.close!
   end
 
+  it "synchronizes system categories and categorizes supermarket and SBP merchants" do
+    file = Tempfile.new([ "statement", ".csv" ])
+    file.write(
+      "date,merchant,amount,transaction_type\n" \
+      "2026-10-01,Супермаркеты 3 7476 833 MAGN,-530,expense\n" \
+      "2026-10-02,Перевод СБП Т-Банк,-1000,expense\n" \
+      "2026-10-03,ОплатаPEREKRESTOK ZAPADNYY,-850,expense\n" \
+      "2026-10-04,MAGAZINZORGE Rostov,-250,expense\n" \
+      "2026-10-05,AMAZON MARKETPLACE,-500,expense\n" \
+      "2026-10-06,STARBUCKS,-300,expense\n"
+    )
+    file.rewind
+    upload = ActionDispatch::Http::UploadedFile.new(filename: "statement.csv", type: "text/csv", tempfile: file)
+
+    statement = described_class.call(user:, uploaded_file: upload)
+
+    expect(statement.financial_transactions.order(:transaction_date).map { |transaction| transaction.category.name }).to eq(
+      [ "Продукты", "Переводы", "Продукты", "Покупки", "Маркетплейсы", "Кафе и рестораны" ]
+    )
+  ensure
+    file&.close!
+  end
+
   it "parses a PDF operation block without treating the balance as the amount" do
     importer = described_class.new(user:, uploaded_file: nil)
 

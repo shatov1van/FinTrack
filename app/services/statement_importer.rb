@@ -55,6 +55,7 @@ class StatementImporter
     raise Error, "В файле не найдены транзакции." if rows.empty?
 
     ActiveRecord::Base.transaction do
+      Category.sync_system_categories!
       imported_count = 0
       duplicate_count = 0
       rows.each do |row|
